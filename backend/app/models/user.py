@@ -48,8 +48,11 @@ class LoginAttempt(Base):
     liveness_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     risk_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
     final_confidence: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    risk_level: Mapped[str | None] = mapped_column(String(40), nullable=True)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
     denial_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    decision_reasons_json: Mapped[list[str] | None] = mapped_column("decision_reasons", JSON, nullable=True)
+    recommended_action: Mapped[str | None] = mapped_column(String(80), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     user: Mapped[User | None] = relationship(back_populates="login_attempts")
