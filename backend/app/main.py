@@ -1,9 +1,20 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1.auth import router as auth_router
 from app.core.config import get_settings
+from app.infrastructure.database import init_db
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -12,6 +23,7 @@ app = FastAPI(
         "BioGate AI backend scaffold for multimodal biometric authentication, "
         "risk scoring, auditability, and security-focused product evolution."
     ),
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -21,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/", tags=["system"])
@@ -54,12 +68,12 @@ async def overview() -> dict[str, object]:
         "positioning": "Biometric Identity and Behavioral Risk Intelligence Platform",
         "mvp_focus": [
             "user registration",
-            "biometric consent",
-            "face capture pipeline",
-            "voice capture pipeline",
-            "dynamic phrase validation",
+            "password hashing",
+            "jwt authentication",
+            "protected routes",
+            "basic audit logging",
+            "demo biometric pipeline",
             "risk scoring",
-            "audit logging",
             "dashboard foundation",
         ],
         "non_goals": [
