@@ -14,8 +14,9 @@ from app.core.security import (
     utc_now,
     verify_password,
 )
-from app.models.user import AuditLog, LoginAttempt, RiskEvent, User
+from app.models.user import LoginAttempt, User
 from app.schemas.auth import AccessTokenResponse, AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from app.services.audit_service import AuditService
 
 settings = get_settings()
 
@@ -23,6 +24,7 @@ settings = get_settings()
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
+        self.audit_service = AuditService(db)
 
     def register_user(self, payload: RegisterRequest, request: Request) -> AuthResponse:
         existing_user = self._get_user_by_email(payload.email)
@@ -40,7 +42,7 @@ class AuthService:
         self.db.add(user)
         self.db.flush()
 
-        self._create_audit_log(
+        self.audit_service.create_audit_log(
             action="auth.register",
             severity="info",
             request=request,
@@ -64,7 +66,7 @@ class AuthService:
                 status_value="denied",
                 denial_reason="invalid_credentials",
             )
-            self._create_audit_log(
+            self.audit_service.create_audit_log(
                 action="auth.login_failed",
                 severity="warning",
                 request=request,
@@ -96,7 +98,7 @@ class AuthService:
             email_attempted=payload.email,
             status_value="approved",
         )
-        self._create_audit_log(
+        self.audit_service.create_audit_log(
             action="auth.login_succeeded",
             severity="info",
             request=request,
@@ -135,7 +137,7 @@ class AuthService:
         self._ensure_user_can_authenticate(user, request, user.email, count_as_failure=False)
         access_token = create_access_token(user.id, user.role)
 
-        self._create_audit_log(
+        self.audit_service.create_audit_log(
             action="auth.refresh_token",
             severity="info",
             request=request,
@@ -181,7 +183,7 @@ class AuthService:
                 status_value="denied",
                 denial_reason="inactive_user",
             )
-            self._create_audit_log(
+            self.audit_service.create_audit_log(
                 action="auth.login_denied",
                 severity="warning",
                 request=request,
@@ -204,7 +206,7 @@ class AuthService:
                 status_value="locked",
                 denial_reason="account_locked",
             )
-            self._create_audit_log(
+            self.audit_service.create_audit_log(
                 action="auth.login_locked",
                 severity="warning",
                 request=request,
@@ -232,7 +234,7 @@ class AuthService:
             user.locked_until = utc_now() + timedelta(minutes=settings.auth_lockout_minutes)
             denial_reason = "account_locked"
             status_value = "locked"
-            self._create_risk_event(
+            self.audit_service.create_risk_event(
                 user=user,
                 event_type="auth.lockout",
                 risk_level="high",
@@ -251,7 +253,7 @@ class AuthService:
             status_value=status_value,
             denial_reason=denial_reason,
         )
-        self._create_audit_log(
+        self.audit_service.create_audit_log(
             action="auth.login_failed",
             severity="warning",
             request=request,
@@ -273,70 +275,14 @@ class AuthService:
         status_value: str,
         denial_reason: str | None = None,
     ) -> None:
-        request_metadata = self._extract_request_metadata(request)
+        request_metadata = self.audit_service.extract_request_metadata(request)
         attempt = LoginAttempt(
             user_id=user.id if user else None,
             email_attempted=email_attempted,
-            ip_address=request_metadata["ip_address"],
-            user_agent=request_metadata["user_agent"],
-            device_fingerprint=request_metadata["device_fingerprint"],
+            ip_address=request_metadata.ip_address,
+            user_agent=request_metadata.user_agent,
+            device_fingerprint=request_metadata.device_fingerprint,
             status=status_value,
             denial_reason=denial_reason,
         )
         self.db.add(attempt)
-
-    def _create_audit_log(
-        self,
-        action: str,
-        severity: str,
-        request: Request,
-        user: User | None = None,
-        entity_name: str | None = None,
-        entity_id: str | None = None,
-        old_data: dict | None = None,
-        new_data: dict | None = None,
-    ) -> None:
-        request_metadata = self._extract_request_metadata(request)
-        audit_log = AuditLog(
-            user_id=user.id if user else None,
-            action=action,
-            entity_name=entity_name,
-            entity_id=entity_id,
-            severity=severity,
-            old_data=old_data,
-            new_data=new_data,
-            ip_address=request_metadata["ip_address"],
-            user_agent=request_metadata["user_agent"],
-        )
-        self.db.add(audit_log)
-
-    def _create_risk_event(
-        self,
-        user: User,
-        event_type: str,
-        risk_level: str,
-        score: Decimal | None,
-        description: str | None,
-        metadata_json: dict | None,
-    ) -> None:
-        risk_event = RiskEvent(
-            user_id=user.id,
-            event_type=event_type,
-            risk_level=risk_level,
-            score=score,
-            description=description,
-            metadata_json=metadata_json,
-        )
-        self.db.add(risk_event)
-
-    def _extract_request_metadata(self, request: Request) -> dict[str, str | None]:
-        forwarded_for = request.headers.get("x-forwarded-for")
-        ip_address = forwarded_for.split(",")[0].strip() if forwarded_for else None
-        if ip_address is None and request.client is not None:
-            ip_address = request.client.host
-
-        return {
-            "ip_address": ip_address,
-            "user_agent": request.headers.get("user-agent"),
-            "device_fingerprint": request.headers.get("x-device-fingerprint"),
-        }

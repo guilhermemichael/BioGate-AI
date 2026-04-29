@@ -39,6 +39,7 @@ class BiometricAttemptResponse(BaseModel):
     risk_level: str | None
     status: str
     reasons: list[str]
+    decision_reasons: list[str]
     recommended_action: str | None
     denial_reason: str | None
     ip_address: str | None

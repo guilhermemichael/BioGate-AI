@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = Field(default=7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
     auth_max_failed_attempts: int = Field(default=5, alias="AUTH_MAX_FAILED_ATTEMPTS")
     auth_lockout_minutes: int = Field(default=15, alias="AUTH_LOCKOUT_MINUTES")
+    default_checkin_phrase: str = Field(default="I authorize this access.", alias="DEFAULT_CHECKIN_PHRASE")
+    report_timezone: str = Field(default="America/Sao_Paulo", alias="REPORT_TIMEZONE")
 
     model_config = SettingsConfigDict(
         env_file=".env",
