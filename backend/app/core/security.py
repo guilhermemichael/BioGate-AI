@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Guilherme Michael
+# Licensed under the MIT License
+
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Guilherme Michael
+// Licensed under the MIT License
+
 import type { Metadata } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";

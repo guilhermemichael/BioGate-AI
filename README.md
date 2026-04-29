@@ -2,6 +2,8 @@
 
 BioGate AI is a biometric authentication SaaS built with Python, FastAPI, computer vision, voice verification, dynamic phrase validation, risk scoring, audit logs, and security dashboards.
 
+© 2026 Guilherme Michael. All rights reserved.
+
 O projeto foi desenhado para parecer e evoluir como produto real: autenticação multimodal, camadas de confiança, trilha de auditoria, LGPD, análise de risco e uma experiência visual inspirada em mission control.
 
 ## Visão do Produto
@@ -484,3 +486,34 @@ Este projeto é excelente para GitHub porque demonstra:
 ## Licença e Próximos Passos
 
 O próximo passo recomendado é implementar o `Identity Core` e o `Biometric Core` em modo demo, conectando o backend FastAPI ao PostgreSQL e ao fluxo de check-in com WebSocket.
+## Legal Documentation
+
+Core legal and policy documents are available in `docs/`:
+
+- `docs/terms-of-service.md`
+- `docs/privacy-policy.md`
+- `docs/biometric-policy.md`
+- `docs/cla.md`
+
+Additional repository policies:
+
+- `SECURITY.md`
+- `DISCLAIMER.md`
+
+## License Alternatives (Not Used)
+
+This project considered the following licenses:
+
+- Apache License 2.0
+- GNU GPL v3
+- BSD 3-Clause License
+
+MIT License was selected for simplicity and permissiveness.
+
+## License
+
+This project is licensed under the MIT License.
+
+Copyright (c) 2026 Guilherme Michael
+
+See the LICENSE file for more details.

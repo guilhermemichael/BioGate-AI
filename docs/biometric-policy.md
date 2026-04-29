@@ -1,38 +1,44 @@
-# BioGate AI Biometric Policy
+# Biometric Data Policy
 
-## Princípios
+BioGate AI processes biometric-related data for authentication purposes.
 
-- consentimento explícito antes de qualquer captura
-- finalidade clara
-- minimização de dados
-- retenção limitada
-- exclusão sob solicitação aplicável
+## Important
 
-## Boas Práticas
+This system DOES NOT:
+- Store raw biometric data unless explicitly required
+- Perform medical or psychological analysis
+- Claim identity certainty beyond probabilistic scoring
 
-- armazenar embeddings criptografados
-- registrar versão do modelo
-- registrar timestamp, IP e dispositivo
-- evitar salvar imagens faciais cruas como padrão
-- evitar salvar áudio bruto além do necessário
+## Data Used
 
-## Decisão e Risco
+- Facial embeddings
+- Voice-derived features
+- Spoken phrase validation
 
-A biometria é tratada como um componente da decisão, não como verdade absoluta.
+## Consent
 
-Sinais usados no processo:
+Biometric processing requires explicit user consent.
 
-- similaridade facial
-- similaridade vocal
-- aderência à frase dinâmica
-- liveness inicial
-- contexto da tentativa
+## Usage
 
-## Limites Declarados
+Biometric data is used only for:
+- Identity verification
+- Fraud prevention
+- Risk analysis
 
-O produto não promete:
+## Security
 
-- detecção absoluta de fraude
-- leitura de estado mental
-- inferência médica
-- interpretação psicológica do usuário
+Biometric representations are:
+- Encrypted
+- Restricted
+- Minimally stored
+
+## Limitations
+
+Biometric systems are probabilistic and may produce false positives or negatives.
+
+## User Control
+
+Users may:
+- Revoke consent
+- Delete biometric data

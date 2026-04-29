@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Guilherme Michael
+# Licensed under the MIT License
+
 from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
