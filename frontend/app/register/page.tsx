@@ -13,6 +13,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("Guilherme Michael");
   const [email, setEmail] = useState("guilherme@example.com");
   const [password, setPassword] = useState("StrongPass123");
+  const [organizationName, setOrganizationName] = useState("BioGate Labs");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,11 +25,12 @@ export default function RegisterPage() {
     try {
       const payload = await apiFetch<AuthPayload>("/auth/register", {
         method: "POST",
-        body: JSON.stringify({ full_name: fullName, email, password }),
+        body: JSON.stringify({ full_name: fullName, email, password, organization_name: organizationName }),
       });
       setSession({
         accessToken: payload.access_token,
         refreshToken: payload.refresh_token,
+        sessionId: payload.session_id,
         user: payload.user,
       });
       router.push("/dashboard");
@@ -55,6 +57,10 @@ export default function RegisterPage() {
           <div className="field">
             <label htmlFor="email">Email</label>
             <input id="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="organizationName">Organization</label>
+            <input id="organizationName" value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>

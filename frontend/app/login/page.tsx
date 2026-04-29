@@ -12,6 +12,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("guilherme@example.com");
   const [password, setPassword] = useState("StrongPass123");
+  const [organizationSlug, setOrganizationSlug] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,11 +24,12 @@ export default function LoginPage() {
     try {
       const payload = await apiFetch<AuthPayload>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, organization_slug: organizationSlug || null }),
       });
       setSession({
         accessToken: payload.access_token,
         refreshToken: payload.refresh_token,
+        sessionId: payload.session_id,
         user: payload.user,
       });
       router.push("/dashboard");
@@ -58,6 +60,15 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="organizationSlug">Organization Slug</label>
+            <input
+              id="organizationSlug"
+              value={organizationSlug}
+              onChange={(event) => setOrganizationSlug(event.target.value)}
+              placeholder="optional for globally unique emails"
             />
           </div>
           {error ? <p className="error-text">{error}</p> : null}

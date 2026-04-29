@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useState } from "react";
 
-import { clearSession, getStoredUser } from "@/lib/auth";
+import { clearSession, getAccessToken, getStoredUser } from "@/lib/auth";
+import { apiFetch } from "@/lib/api";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/check-in", label: "Check-in" },
   { href: "/security-logs", label: "Security Logs" },
+  { href: "/sessions", label: "Sessions" },
+  { href: "/devices", label: "Devices" },
 ];
 
 export function MissionShell({
@@ -24,6 +27,7 @@ export function MissionShell({
   const pathname = usePathname();
   const router = useRouter();
   const [userName, setUserName] = useState("Operator");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     const user = getStoredUser<{ full_name?: string }>();
@@ -64,13 +68,27 @@ export function MissionShell({
           </Link>
           <button
             className="button danger"
+            disabled={loggingOut}
             type="button"
-            onClick={() => {
+            onClick={async () => {
+              const token = getAccessToken();
+              setLoggingOut(true);
+              if (token) {
+                try {
+                  await apiFetch("/auth/logout", {
+                    method: "POST",
+                    body: JSON.stringify({ revoke_all: false }),
+                  }, token);
+                } catch {
+                  // Local cleanup still happens even if the API call fails.
+                }
+              }
               clearSession();
               router.push("/login");
+              setLoggingOut(false);
             }}
           >
-            Logout
+            {loggingOut ? "Logging out..." : "Logout"}
           </button>
         </div>
       </aside>

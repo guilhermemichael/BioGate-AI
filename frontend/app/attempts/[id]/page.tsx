@@ -62,6 +62,13 @@ export default function AttemptDetailPage() {
                   </span>
                 ))}
               </div>
+              <div className="architecture-list" style={{ marginTop: 10 }}>
+                {detail.attempt.risk_reasons.map((reason) => (
+                  <span className="tag" key={reason}>
+                    {reason}
+                  </span>
+                ))}
+              </div>
             </div>
             <div className="panel">
               <div className="section-heading">
@@ -84,10 +91,42 @@ export default function AttemptDetailPage() {
                   <div className="mono">{detail.attempt.device_fingerprint ?? "n/a"}</div>
                 </div>
                 <div>
+                  <div className="metric-label">Request ID</div>
+                  <div className="mono">{detail.attempt.request_id ?? "n/a"}</div>
+                </div>
+                <div>
                   <div className="metric-label">Created</div>
                   <div>{formatDate(detail.attempt.created_at)}</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="panel" style={{ marginTop: 18 }}>
+            <div className="section-heading">
+              <div>
+                <div className="brand-kicker">Explainability</div>
+                <h2>Score Breakdown</h2>
+              </div>
+              <StatusBadge value={detail.attempt.replay_detected ? "replay_detected" : "clean"} />
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Factor</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(detail.attempt.score_breakdown ?? {}).map(([factor, value]) => (
+                    <tr key={factor}>
+                      <td className="mono">{factor}</td>
+                      <td>{formatPercentage(value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -106,6 +145,7 @@ export default function AttemptDetailPage() {
                     <div>
                       <strong>{event.action}</strong>
                       <div className="metric-trend">{formatDate(event.created_at)}</div>
+                      <div className="mono">{event.event_hash?.slice(0, 18) ?? "no-hash"}</div>
                     </div>
                     <div className="mono">{event.ip_address ?? "n/a"}</div>
                   </div>

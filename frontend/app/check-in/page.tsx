@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { MissionShell } from "@/components/mission-shell";
 import { StatusBadge } from "@/components/status-badge";
-import { getAccessToken } from "@/lib/auth";
+import { buildDeviceFingerprint, getAccessToken } from "@/lib/auth";
 import { apiFetch, getWebSocketUrl } from "@/lib/api";
 import { formatPercentage } from "@/lib/format";
 import { Attempt, RealtimeEvent } from "@/lib/types";
@@ -51,7 +51,7 @@ export default function CheckInPage() {
       liveness_hint: livenessHint,
       device_trusted: deviceTrusted,
       network_trusted: networkTrusted,
-      device_fingerprint: navigator.userAgent,
+      device_fingerprint: buildDeviceFingerprint(),
     };
 
     const sessionId = `session-${Date.now()}`;
