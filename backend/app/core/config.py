@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = Field(default=7, alias="REFRESH_TOKEN_EXPIRE_DAYS")
     auth_max_failed_attempts: int = Field(default=5, alias="AUTH_MAX_FAILED_ATTEMPTS")
     auth_lockout_minutes: int = Field(default=15, alias="AUTH_LOCKOUT_MINUTES")
+    rate_limit_global_per_minute: int = Field(default=180, alias="RATE_LIMIT_GLOBAL_PER_MINUTE")
+    rate_limit_login_per_15_minutes: int = Field(default=12, alias="RATE_LIMIT_LOGIN_PER_15_MINUTES")
+    rate_limit_refresh_per_10_minutes: int = Field(default=30, alias="RATE_LIMIT_REFRESH_PER_10_MINUTES")
+    rate_limit_checkin_per_5_minutes: int = Field(default=20, alias="RATE_LIMIT_CHECKIN_PER_5_MINUTES")
     default_checkin_phrase: str = Field(default="I authorize this access.", alias="DEFAULT_CHECKIN_PHRASE")
     report_timezone: str = Field(default="America/Sao_Paulo", alias="REPORT_TIMEZONE")
 

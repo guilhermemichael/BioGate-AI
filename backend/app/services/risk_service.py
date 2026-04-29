@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.security import utc_now
 from app.models.user import LoginAttempt, User
 from app.schemas.biometric import BiometricCheckInRequest
 from app.services.audit_service import RequestMetadata
+from app.services.device_service import DeviceAssessment
 
 
 @dataclass(slots=True)
@@ -35,16 +40,21 @@ class RiskService:
         payload: BiometricCheckInRequest,
         request_metadata: RequestMetadata,
         scores: ScoreBundle,
+        device_assessment: DeviceAssessment,
+        replay_detected: bool,
     ) -> RiskEvaluation:
-        risk_score = 0.15
+        risk_score = 0.12
         reasons: list[str] = []
 
-        device_fingerprint = payload.device_fingerprint or request_metadata.device_fingerprint
-        if not payload.device_trusted:
+        if device_assessment.fingerprint_hash is None:
+            risk_score += 0.08
+            reasons.append("device_fingerprint_missing")
+        elif not device_assessment.is_known:
             risk_score += 0.18
             reasons.append("new_device_detected")
-        elif not device_fingerprint:
-            risk_score += 0.06
+        elif not device_assessment.is_trusted:
+            risk_score += 0.10
+            reasons.append("device_not_yet_trusted")
 
         if not payload.network_trusted:
             risk_score += 0.14
@@ -57,6 +67,14 @@ class RiskService:
         if payload.location_changed:
             risk_score += 0.10
             reasons.append("location_shift_detected")
+
+        if payload.response_latency_ms < 450:
+            risk_score += 0.12
+            reasons.append("response_latency_too_fast")
+
+        if replay_detected:
+            risk_score += 0.20
+            reasons.append("replay_pattern_detected")
 
         if scores.face_score < 0.82:
             risk_score += 0.10
@@ -82,15 +100,35 @@ class RiskService:
             select(LoginAttempt)
             .where(
                 LoginAttempt.user_id == user.id,
+                LoginAttempt.organization_id == user.organization_id,
                 LoginAttempt.final_confidence.is_not(None),
             )
             .order_by(LoginAttempt.created_at.desc())
-            .limit(5)
+            .limit(10)
         ).all()
         recent_non_approved = sum(1 for attempt in recent_attempts if attempt.status != "approved")
         if recent_non_approved > 0:
             risk_score += min(recent_non_approved * 0.03, 0.12)
             reasons.append("recent_biometric_friction")
+
+        burst_window = utc_now() - timedelta(minutes=5)
+        burst_attempts = self.db.scalars(
+            select(LoginAttempt).where(
+                LoginAttempt.user_id == user.id,
+                LoginAttempt.organization_id == user.organization_id,
+                LoginAttempt.created_at >= burst_window,
+            )
+        ).all()
+        if len(burst_attempts) >= 3:
+            risk_score += 0.10
+            reasons.append("velocity_detection_triggered")
+
+        if recent_attempts:
+            avg_face = sum(float(attempt.face_score or 0) for attempt in recent_attempts) / len(recent_attempts)
+            avg_voice = sum(float(attempt.voice_score or 0) for attempt in recent_attempts) / len(recent_attempts)
+            if abs(scores.face_score - avg_face) >= 0.18 or abs(scores.voice_score - avg_voice) >= 0.18:
+                risk_score += 0.08
+                reasons.append("behavior_drift_detected")
 
         risk_score = self._round_score(max(0.01, min(risk_score, 0.99)))
         risk_level = self._risk_level_from_score(risk_score)

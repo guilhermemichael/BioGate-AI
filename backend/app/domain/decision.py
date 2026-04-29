@@ -19,3 +19,5 @@ class DecisionOutcome:
     status: str
     decision_reasons: list[str]
     recommended_action: str
+    score_breakdown: dict[str, float]
+    explanation: str

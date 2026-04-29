@@ -36,12 +36,17 @@ class ReportService:
         writer.writerow(
             [
                 "attempt_id",
+                "organization_id",
                 "user_name",
                 "user_email",
                 "status",
                 "risk_level",
+                "context_score",
                 "final_confidence",
                 "risk_score",
+                "replay_detected",
+                "decision_reasons",
+                "risk_reasons",
                 "ip_address",
                 "device_fingerprint",
                 "created_at",
@@ -51,12 +56,17 @@ class ReportService:
             writer.writerow(
                 [
                     item.attempt_id,
+                    item.organization_id,
                     item.user_name,
                     item.user_email,
                     item.status,
                     item.risk_level,
+                    item.context_score,
                     item.final_confidence,
                     item.risk_score,
+                    item.replay_detected,
+                    "|".join(item.reasons),
+                    "|".join(item.risk_reasons),
                     item.ip_address,
                     item.device_fingerprint,
                     item.created_at.isoformat(),
@@ -74,6 +84,8 @@ class ReportService:
         story = [
             Paragraph("BioGate AI Security Report", styles["Title"]),
             Spacer(1, 16),
+            Paragraph(f"Organization: {current_user.organization.name}", styles["Heading3"]),
+            Spacer(1, 8),
             Paragraph("Executive Summary", styles["Heading2"]),
             Spacer(1, 8),
         ]

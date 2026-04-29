@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.api.realtime import router as realtime_router
 from app.api.v1.auth import router as auth_router
@@ -16,6 +16,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, log_json
 from app.core.observability import REQUEST_COUNT, REQUEST_LATENCY, render_metrics
 from app.infrastructure.database import check_database_connection, init_db
+from app.services.rate_limit_service import rate_limiter
 
 settings = get_settings()
 configure_logging()
@@ -58,12 +59,42 @@ async def request_context_middleware(request: Request, call_next):
     request_id = request.headers.get("x-request-id", str(uuid4()))
     started_at = perf_counter()
     request.state.request_id = request_id
+    forwarded_for = request.headers.get("x-forwarded-for")
+    ip_address = forwarded_for.split(",")[0].strip() if forwarded_for else None
+    if ip_address is None and request.client is not None:
+        ip_address = request.client.host
+    try:
+        rate_limiter.enforce(
+            scope="global-ip",
+            key=ip_address or "unknown",
+            limit=settings.rate_limit_global_per_minute,
+            window_seconds=60,
+        )
+    except Exception as exc:
+        from fastapi import HTTPException
+
+        if isinstance(exc, HTTPException):
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+                headers=exc.headers,
+            )
+        raise
     response = await call_next(request)
     duration = perf_counter() - started_at
     path_template = request.scope.get("route").path if request.scope.get("route") else request.url.path
     REQUEST_COUNT.labels(request.method, path_template, response.status_code).inc()
     REQUEST_LATENCY.labels(request.method, path_template).observe(duration)
     response.headers["x-request-id"] = request_id
+    response.headers["x-content-type-options"] = "nosniff"
+    response.headers["x-frame-options"] = "DENY"
+    response.headers["referrer-policy"] = "same-origin"
+    response.headers["permissions-policy"] = "camera=(self), microphone=(self)"
+    response.headers["content-security-policy"] = (
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss: http: https:;"
+    )
+    auth_context = getattr(request.state, "auth_context", None)
     log_json(
         "http_request",
         request_id=request_id,
@@ -71,6 +102,10 @@ async def request_context_middleware(request: Request, call_next):
         path=request.url.path,
         status_code=response.status_code,
         duration_ms=round(duration * 1000, 2),
+        ip_address=ip_address,
+        user_id=auth_context.user_id if auth_context else None,
+        organization_id=auth_context.organization_id if auth_context else None,
+        session_id=auth_context.session_id if auth_context else None,
     )
     return response
 

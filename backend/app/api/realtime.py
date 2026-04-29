@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.observability import WEBSOCKET_CONNECTIONS
 from app.core.security import decode_token
 from app.infrastructure.database import SessionLocal
-from app.models.user import User
+from app.models.user import User, UserSession
 from app.schemas.biometric import BiometricCheckInRequest
 from app.services.audit_service import RequestMetadata
 from app.services.biometric_service import BiometricService
@@ -30,7 +30,9 @@ async def biometric_checkin_stream(websocket: WebSocket, session_id: str) -> Non
         return
 
     user_id = payload.get("sub")
-    if payload.get("type") != "access" or not user_id:
+    organization_id = payload.get("org")
+    access_session_id = payload.get("sid")
+    if payload.get("type") != "access" or not user_id or not organization_id or not access_session_id:
         await websocket.close(code=4401, reason="invalid_subject")
         return
 
@@ -38,8 +40,12 @@ async def biometric_checkin_stream(websocket: WebSocket, session_id: str) -> Non
     accepted = False
     try:
         user = db.get(User, user_id)
-        if user is None:
+        access_session = db.get(UserSession, access_session_id)
+        if user is None or access_session is None:
             await websocket.close(code=4404, reason="user_not_found")
+            return
+        if access_session.user_id != user.id or access_session.organization_id != organization_id or access_session.revoked_at is not None:
+            await websocket.close(code=4401, reason="session_revoked")
             return
 
         await websocket.accept()
@@ -79,6 +85,9 @@ async def biometric_checkin_stream(websocket: WebSocket, session_id: str) -> Non
                     ip_address=websocket.client.host if websocket.client else None,
                     user_agent=websocket.headers.get("user-agent"),
                     device_fingerprint=checkin_payload.device_fingerprint,
+                    request_id=websocket.headers.get("x-request-id"),
+                    trace_id=websocket.headers.get("x-trace-id"),
+                    correlation_id=websocket.headers.get("x-correlation-id"),
                 ),
             )
             await websocket.send_json(
@@ -96,4 +105,5 @@ async def biometric_checkin_stream(websocket: WebSocket, session_id: str) -> Non
         db.close()
         if accepted and websocket.client_state == WebSocketState.CONNECTED:
             await websocket.close()
+        if accepted:
             WEBSOCKET_CONNECTIONS.dec()

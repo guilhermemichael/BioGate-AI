@@ -87,8 +87,11 @@ class DashboardService:
         return ConfidenceTrendResponse(items=points)
 
     def _load_attempts(self, *, current_user: User, days: int | None, limit: int | None = None) -> list[LoginAttempt]:
-        filters = [LoginAttempt.final_confidence.is_not(None)]
-        if current_user.role != "admin":
+        filters = [
+            LoginAttempt.organization_id == current_user.organization_id,
+            LoginAttempt.final_confidence.is_not(None),
+        ]
+        if current_user.role not in {"admin", "organization_owner", "security_analyst"}:
             filters.append(LoginAttempt.user_id == current_user.id)
         if days is not None:
             cutoff_date = date.today() - timedelta(days=days - 1)
@@ -103,8 +106,10 @@ class DashboardService:
     def _serialize_attempt(self, attempt: LoginAttempt) -> BiometricAttemptResponse:
         return BiometricAttemptResponse(
             attempt_id=attempt.id,
+            organization_id=attempt.organization_id,
             user_id=attempt.user_id,
             email_attempted=attempt.email_attempted,
+            context_score=float(attempt.context_score) if attempt.context_score is not None else None,
             face_score=float(attempt.face_score) if attempt.face_score is not None else None,
             voice_score=float(attempt.voice_score) if attempt.voice_score is not None else None,
             phrase_score=float(attempt.phrase_score) if attempt.phrase_score is not None else None,
@@ -115,8 +120,11 @@ class DashboardService:
             status=attempt.status,
             reasons=attempt.decision_reasons_json or [],
             decision_reasons=attempt.decision_reasons_json or [],
+            risk_reasons=attempt.risk_reasons_json or [],
+            score_breakdown=attempt.score_breakdown_json or {},
             recommended_action=attempt.recommended_action,
             denial_reason=attempt.denial_reason,
+            replay_detected=attempt.replay_detected,
             ip_address=attempt.ip_address,
             user_agent=attempt.user_agent,
             device_fingerprint=attempt.device_fingerprint,

@@ -3,24 +3,34 @@ from app.domain.decision import DecisionInput, DecisionOutcome
 
 class DecisionService:
     def evaluate(self, payload: DecisionInput) -> DecisionOutcome:
+        score_breakdown = {
+            "face_component": round(payload.face_score * 0.35, 4),
+            "voice_component": round(payload.voice_score * 0.25, 4),
+            "phrase_component": round(payload.phrase_score * 0.20, 4),
+            "liveness_component": round(payload.liveness_score * 0.10, 4),
+            "context_component": round(payload.context_score * 0.10, 4),
+            "risk_penalty": round(payload.risk_score * 0.05, 4),
+        }
         weighted_core = (
-            (payload.face_score * 0.35)
-            + (payload.voice_score * 0.25)
-            + (payload.phrase_score * 0.20)
-            + (payload.liveness_score * 0.10)
-            + (payload.context_score * 0.10)
+            score_breakdown["face_component"]
+            + score_breakdown["voice_component"]
+            + score_breakdown["phrase_component"]
+            + score_breakdown["liveness_component"]
+            + score_breakdown["context_component"]
         )
-        risk_penalty = payload.risk_score * 0.05
-        final_confidence = self._normalize_score(weighted_core - risk_penalty)
+        final_confidence = self._normalize_score(weighted_core - score_breakdown["risk_penalty"])
         status = self._resolve_status(final_confidence)
         recommended_action = self._recommended_action_for_status(status)
         decision_reasons = self._build_decision_reasons(payload)
+        explanation = self._build_explanation(status=status, final_confidence=final_confidence, payload=payload)
 
         return DecisionOutcome(
             final_confidence=final_confidence,
             status=status,
             decision_reasons=decision_reasons,
             recommended_action=recommended_action,
+            score_breakdown=score_breakdown,
+            explanation=explanation,
         )
 
     def _resolve_status(self, final_confidence: float) -> str:
@@ -74,6 +84,22 @@ class DecisionService:
             if reason not in deduplicated:
                 deduplicated.append(reason)
         return deduplicated
+
+    def _build_explanation(self, *, status: str, final_confidence: float, payload: DecisionInput) -> str:
+        if status == "approved":
+            return (
+                f"Confidence {final_confidence:.2f} approved the check-in because face, voice, phrase and "
+                f"liveness stayed within policy while contextual risk remained {payload.risk_level}."
+            )
+        if status == "manual_review":
+            return (
+                f"Confidence {final_confidence:.2f} triggered manual review because biometric quality or "
+                f"contextual risk signals need a second factor."
+            )
+        return (
+            f"Confidence {final_confidence:.2f} denied the attempt because biometric confidence was weak "
+            f"or contextual risk escalated to {payload.risk_level}."
+        )
 
     def _normalize_score(self, raw_score: float) -> float:
         bounded = min(max(raw_score, 0.01), 0.99)

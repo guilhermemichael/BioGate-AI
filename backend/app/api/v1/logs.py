@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_active_user
+from app.core.security import require_permissions
 from app.infrastructure.database import get_db
 from app.models.user import User
 from app.schemas.logs import SecurityLogDetailResponse, SecurityLogsListResponse
@@ -23,7 +23,7 @@ def list_security_logs(
     device: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permissions("audit:read")),
     db: Session = Depends(get_db),
 ) -> SecurityLogsListResponse:
     return LogService(db).list_logs(
@@ -43,7 +43,7 @@ def list_security_logs(
 @router.get("/{attempt_id}", response_model=SecurityLogDetailResponse)
 def get_security_log(
     attempt_id: str,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permissions("audit:read")),
     db: Session = Depends(get_db),
 ) -> SecurityLogDetailResponse:
     return LogService(db).get_log_detail(current_user=current_user, attempt_id=attempt_id)

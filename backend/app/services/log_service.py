@@ -60,6 +60,7 @@ class LogService:
         related_events = self.db.scalars(
             select(AuditLog)
             .where(
+                AuditLog.organization_id == current_user.organization_id,
                 AuditLog.entity_name == "login_attempt",
                 AuditLog.entity_id == attempt.id,
             )
@@ -71,11 +72,17 @@ class LogService:
             related_audit_events=[
                 RelatedAuditEvent(
                     id=event.id,
+                    organization_id=event.organization_id,
                     action=event.action,
                     severity=event.severity,
                     created_at=event.created_at,
                     ip_address=event.ip_address,
                     user_agent=event.user_agent,
+                    request_id=event.request_id,
+                    trace_id=event.trace_id,
+                    correlation_id=event.correlation_id,
+                    previous_hash=event.previous_hash,
+                    event_hash=event.event_hash,
                     new_data=event.new_data,
                 )
                 for event in related_events
@@ -97,11 +104,14 @@ class LogService:
         query = (
             select(LoginAttempt, User)
             .outerjoin(User, User.id == LoginAttempt.user_id)
-            .where(LoginAttempt.final_confidence.is_not(None))
+            .where(
+                LoginAttempt.organization_id == current_user.organization_id,
+                LoginAttempt.final_confidence.is_not(None),
+            )
             .order_by(LoginAttempt.created_at.desc())
         )
 
-        if current_user.role != "admin":
+        if current_user.role not in {"admin", "organization_owner", "security_analyst"}:
             query = query.where(LoginAttempt.user_id == current_user.id)
         if status_value:
             query = query.where(LoginAttempt.status == status_value)
@@ -130,11 +140,14 @@ class LogService:
     def _serialize_row(self, attempt: LoginAttempt, user: User | None) -> SecurityLogItem:
         return SecurityLogItem(
             attempt_id=attempt.id,
+            organization_id=attempt.organization_id,
             user_id=attempt.user_id,
             user_name=user.full_name if user else None,
             user_email=user.email if user else attempt.email_attempted,
+            session_id=attempt.session_id,
             status=attempt.status,
             risk_level=attempt.risk_level,
+            context_score=float(attempt.context_score) if attempt.context_score is not None else None,
             face_score=float(attempt.face_score) if attempt.face_score is not None else None,
             voice_score=float(attempt.voice_score) if attempt.voice_score is not None else None,
             phrase_score=float(attempt.phrase_score) if attempt.phrase_score is not None else None,
@@ -145,7 +158,13 @@ class LogService:
             user_agent=attempt.user_agent,
             device_fingerprint=attempt.device_fingerprint,
             reasons=attempt.decision_reasons_json or [],
+            risk_reasons=attempt.risk_reasons_json or [],
+            score_breakdown=attempt.score_breakdown_json,
             denial_reason=attempt.denial_reason,
             recommended_action=attempt.recommended_action,
+            replay_detected=attempt.replay_detected,
+            request_id=attempt.request_id,
+            trace_id=attempt.trace_id,
+            correlation_id=attempt.correlation_id,
             created_at=attempt.created_at,
         )

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_active_user
+from app.core.security import get_current_active_user, get_current_session, require_permissions
 from app.infrastructure.database import get_db
-from app.models.user import User
+from app.models.user import User, UserSession
 from app.schemas.biometric import (
     BiometricAttemptResponse,
     BiometricAttemptsListResponse,
@@ -18,11 +18,12 @@ router = APIRouter(prefix="/biometric", tags=["biometric"])
 def biometric_check_in(
     payload: BiometricCheckInRequest,
     request: Request,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_permissions("checkin:run")),
+    current_session: UserSession = Depends(get_current_session),
     db: Session = Depends(get_db),
 ) -> BiometricAttemptResponse:
     service = BiometricService(db)
-    return service.create_check_in(user=current_user, payload=payload, request=request)
+    return service.create_check_in(user=current_user, payload=payload, request=request, session=current_session)
 
 
 @router.get("/attempts", response_model=BiometricAttemptsListResponse)

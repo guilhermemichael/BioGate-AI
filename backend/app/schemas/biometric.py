@@ -19,6 +19,8 @@ class BiometricCheckInRequest(BaseModel):
     network_trusted: bool = True
     unusual_time: bool = False
     location_changed: bool = False
+    response_latency_ms: int = Field(default=1200, ge=0, le=120000)
+    geo_country: str | None = Field(default=None, max_length=80)
 
     @field_validator("spoken_phrase", "expected_phrase")
     @classmethod
@@ -28,8 +30,10 @@ class BiometricCheckInRequest(BaseModel):
 
 class BiometricAttemptResponse(BaseModel):
     attempt_id: str
+    organization_id: str | None
     user_id: str | None
     email_attempted: str | None
+    context_score: float | None
     face_score: float | None
     voice_score: float | None
     phrase_score: float | None
@@ -40,8 +44,11 @@ class BiometricAttemptResponse(BaseModel):
     status: str
     reasons: list[str]
     decision_reasons: list[str]
+    risk_reasons: list[str] = Field(default_factory=list)
+    score_breakdown: dict[str, float] = Field(default_factory=dict)
     recommended_action: str | None
     denial_reason: str | None
+    replay_detected: bool = False
     ip_address: str | None
     user_agent: str | None
     device_fingerprint: str | None

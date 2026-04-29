@@ -11,14 +11,17 @@ from fastapi.testclient import TestClient
 
 from app.infrastructure.database import Base, SessionLocal, engine, get_db
 from app.main import app
+from app.services.rate_limit_service import rate_limiter
 
 
 @pytest.fixture(autouse=True)
 def reset_database():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
+    rate_limiter._events.clear()
     yield
     Base.metadata.drop_all(bind=engine)
+    rate_limiter._events.clear()
 
 
 @pytest.fixture
