@@ -500,14 +500,6 @@ Additional repository policies:
 - `SECURITY.md`
 - `DISCLAIMER.md`
 
-## License Alternatives (Not Used)
-
-This project considered the following licenses:
-
-- Apache License 2.0
-- GNU GPL v3
-- BSD 3-Clause License
-
 MIT License was selected for simplicity and permissiveness.
 
 ## License
