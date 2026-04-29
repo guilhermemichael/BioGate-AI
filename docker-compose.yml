@@ -11,6 +11,18 @@ services:
       - postgres
       - redis
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: biogate-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_WS_BASE_URL: ws://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
   postgres:
     image: postgres:16-alpine
     container_name: biogate-postgres
